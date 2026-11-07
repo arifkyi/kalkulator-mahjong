@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Kalkulator Mahjong Hong Kong: Hitung Poin Faan Otomatis</title>
+<meta name="description" content="Kalkulator mahjong Hong Kong gratis untuk hitung poin faan otomatis. Susun 14 tile, pilih kondisi menang, langsung tahu nama hand dan total faan. Berjalan offline, tanpa iklan, tanpa unsur judi.">
+<meta name="author" content="Ahmad Rifky Idrus">
+<meta name="theme-color" content="#0e3b2d">
+<meta property="og:title" content="Kalkulator Mahjong Hong Kong">
+<meta property="og:description" content="Hitung poin faan mahjong Hong Kong otomatis: susun 14 tile, pilih kondisi menang, langsung tahu nama hand dan total faan.">
+<meta property="og:type" content="website">
+<style>
+/* Layout: full-width tile rack like a player's rack on the table, then a two-column
+   area: tile palette + conditions on the left, sticky score card on the right.
+   Single deliberate look: dark mahjong-table felt with ivory tiles and gold trim. */
+:root {
+  --felt: #0e3b2d;
+  --felt-deep: #0a2c21;
+  --felt-raise: #145040;
+  --ivory: #f6f0de;
+  --ivory-shade: #e4d9bb;
+  --tile-back: #2f8a5e;
+  --ink: #1d2a44;
+  --gold: #dcb862;
+  --gold-soft: rgba(220, 184, 98, 0.28);
+  --red: #c0392b;
+  --ok: #6fd39a;
+  --warn: #f0a35e;
+  --text: #eef1e8;
+  --muted: #a7c1b3;
+  --line: rgba(220, 184, 98, 0.22);
+
+  /* system fonts only: no downloads, works offline */
+  --f-display: "Iowan Old Style", "Palatino Linotype", Palatino, Cambria, Georgia, serif;
+  --f-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --f-han: "Songti TC", "Songti SC", "PMingLiU", "MingLiU", "Noto Serif CJK TC", "Noto Serif TC", "Noto Sans CJK TC", "Microsoft JhengHei", serif;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--felt-deep); -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+img, svg { max-width: 100%; }
+body {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, var(--felt-raise), transparent 70%),
+    var(--felt);
+  color: var(--text);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+  margin: 0;
+}
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 110px; }
+@media (min-width: 960px) { .wrap { padding-block: 28px 48px; } }
+
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 18px; }
+header.top h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(26px, 4vw, 38px); line-height: 1.1; margin: 0; text-wrap: balance; }
+header.top h1 .han { font-family: var(--f-han); color: var(--gold); font-weight: 900; margin-left: 8px; }
+header.top p { margin: 4px 0 0; color: var(--muted); max-width: 62ch; }
+.brand { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+
+/* ---------- tiles ---------- */
+.tile {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  border-radius: 9%/7%;
+  background: linear-gradient(180deg, #fffaf0 0%, var(--ivory) 55%, var(--ivory-shade) 100%);
+  box-shadow: 0 2px 0 #d3c59f, 0 5px 0 var(--tile-back), 0 7px 10px rgba(0,0,0,.45);
+  display: block;
+}
+.tile svg { position: absolute; inset: 6% 7%; width: 86%; height: 88%; }
+.tz { font-family: var(--f-han); font-weight: 900; }
+
+/* ---------- rack ---------- */
+.rack-card { background: rgba(0,0,0,.18); border: 1px solid var(--line); border-radius: 14px; padding: 14px 14px 12px; }
+.rack-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 10px; }
+.rack-head h2 { margin: 0; font-family: var(--f-display); font-size: 18px; }
+.count { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; }
+.count b { color: var(--gold); }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn {
+  font: 600 13px/1 var(--f-body); color: var(--text);
+  background: rgba(255,255,255,.06); border: 1px solid var(--line);
+  border-radius: 999px; padding: 8px 12px; cursor: pointer;
+}
+.btn:hover { background: rgba(255,255,255,.12); }
+.btn:focus-visible, .slot-btn:focus-visible, .ptile:focus-visible, .slot .tile-hit:focus-visible, .seg button:focus-visible, .chk input:focus-visible + span { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.rack { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 760px) { .rack { grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 10px; } }
+.slot { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 0; }
+.slot-btn {
+  height: 24px; border-radius: 6px; border: 1px solid var(--line);
+  background: rgba(255,255,255,.05); color: var(--gold); cursor: pointer;
+  font-size: 12px; line-height: 1; padding: 0;
+}
+.slot-btn:hover { background: rgba(220,184,98,.18); }
+.tile-hit { position: relative; display: block; padding: 0; border: 0; background: none; cursor: grab; touch-action: none; border-radius: 8px; margin-bottom: 6px; }
+.tile-hit:active { cursor: grabbing; }
+.empty {
+  aspect-ratio: 3 / 4; width: 100%; border-radius: 9%/7%;
+  border: 2px dashed rgba(220,184,98,.35); display: grid; place-items: center;
+  color: rgba(220,184,98,.55); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px;
+}
+.slot.sel .tile, .slot.sel .empty { outline: 3px solid var(--gold); outline-offset: 2px; }
+.slot.over .tile, .slot.over .empty { outline: 3px solid var(--ok); outline-offset: 2px; }
+.slot.dragging .tile { opacity: .35; }
+.rm {
+  position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%;
+  border: 0; background: var(--felt-deep); color: var(--text); font-size: 12px; line-height: 20px; cursor: pointer;
+  box-shadow: 0 0 0 1px var(--line); display: none;
+}
+.slot:hover .rm, .slot.sel .rm { display: block; }
+@media (hover: none) { .rm { display: block; } }
+.hint { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+.toast { min-height: 20px; margin-top: 6px; font-size: 13px; color: var(--warn); }
+
+/* ---------- main grid ---------- */
+.grid { display: grid; gap: 18px; margin-top: 18px; }
+@media (min-width: 960px) { .grid { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; } }
+.panel { background: rgba(0,0,0,.16); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+.panel + .panel { margin-top: 18px; }
+.panel h2 { margin: 0 0 12px; font-family: var(--f-display); font-size: 18px; }
+.panel h2 small { font-family: var(--f-body); font-weight: 500; color: var(--muted); font-size: 13px; margin-left: 6px; }
+
+.prow { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 10px; }
+.prow .lab { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.prow .lab .han { font-family: var(--f-han); color: var(--gold); font-size: 16px; letter-spacing: 0; display: block; text-transform: none; }
+.ptiles { display: grid; grid-template-columns: repeat(9, minmax(0, 46px)); gap: 6px; }
+@media (max-width: 480px) { .prow { grid-template-columns: 1fr; gap: 4px; } }
+.ptile { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 8px; margin-bottom: 5px; touch-action: manipulation; }
+.ptile:hover .tile { transform: translateY(-2px); }
+.ptile .tile { transition: transform .12s ease; }
+.ptile[aria-disabled="true"] { opacity: .3; cursor: not-allowed; }
+.ptile .left { position: absolute; bottom: -2px; right: 2px; font-size: 10px; font-weight: 700; color: var(--ink); opacity: .55; font-variant-numeric: tabular-nums; }
+
+/* ---------- conditions ---------- */
+.cond { display: grid; gap: 14px; }
+.field .flab { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: block; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; background: rgba(0,0,0,.2); border-radius: 10px; padding: 4px; width: fit-content; max-width: 100%; }
+.seg button { font: 600 13px/1 var(--f-body); color: var(--muted); background: transparent; border: 0; border-radius: 7px; padding: 8px 11px; cursor: pointer; }
+.seg button .han { font-family: var(--f-han); margin-right: 4px; }
+.seg button[aria-pressed="true"] { background: var(--gold); color: #1c2a20; }
+.cols2 { display: grid; gap: 14px; }
+@media (min-width: 620px) { .cols2 { grid-template-columns: 1fr 1fr; } }
+
+.flowers { display: grid; grid-template-columns: repeat(8, minmax(0, 44px)); gap: 6px; }
+.fl { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 8px; margin-bottom: 5px; }
+.fl .tile { opacity: .32; filter: grayscale(.7); transition: opacity .12s, filter .12s; }
+.fl[aria-pressed="true"] .tile { opacity: 1; filter: none; }
+.fl.seat::after { content: ""; position: absolute; }
+.fl-note { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.checks { display: grid; gap: 6px; }
+@media (min-width: 620px) { .checks { grid-template-columns: 1fr 1fr; } }
+.chk { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid transparent; cursor: pointer; }
+.chk:hover { border-color: var(--line); }
+.chk input { position: absolute; opacity: 0; pointer-events: none; }
+.chk .box { flex: 0 0 18px; height: 18px; border-radius: 5px; border: 2px solid var(--gold); margin-top: 1px; display: grid; place-items: center; }
+.chk input:checked ~ .box { background: var(--gold); }
+.chk input:checked ~ .box::after { content: ""; width: 5px; height: 9px; border: solid #1c2a20; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.chk .txt { min-width: 0; font-size: 14px; }
+.chk .txt .han { font-family: var(--f-han); color: var(--gold); margin-left: 4px; }
+.chk .txt small { display: block; color: var(--muted); font-size: 12px; }
+.chk.dis { cursor: not-allowed; opacity: .42; }
+.chk.dis .txt small { color: var(--warn); }
+.sel-in { font: 600 14px var(--f-body); color: var(--text); background: rgba(0,0,0,.25); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+.sel-in:disabled { opacity: .45; }
+
+details.rules { margin-top: 4px; }
+details.rules summary { cursor: pointer; color: var(--gold); font-weight: 600; font-size: 14px; }
+.rules-grid { display: grid; gap: 10px; margin-top: 12px; }
+.rules-grid label.rr { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; }
+.rules-grid label.rr span small { display: block; color: var(--muted); font-size: 12px; }
+
+/* ---------- score card ---------- */
+.score { position: relative; }
+@media (min-width: 960px) { .score { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); } }
+.score-card { background: linear-gradient(180deg, rgba(220,184,98,.12), rgba(0,0,0,.2)); border: 1px solid var(--gold-soft); border-radius: 16px; padding: 18px; }
+.big { display: flex; align-items: baseline; gap: 10px; }
+.big .num { font-family: var(--f-display); font-size: 76px; line-height: .95; font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
+.big .unit { font-size: 16px; color: var(--muted); }
+.big .unit .han { font-family: var(--f-han); color: var(--text); margin-left: 4px; }
+.hand-name { font-family: var(--f-display); font-size: 21px; font-weight: 700; margin: 8px 0 2px; text-wrap: balance; }
+.hand-han { font-family: var(--f-han); color: var(--gold); font-size: 16px; }
+.hand-han .jy { font-family: var(--f-body); color: var(--muted); font-size: 13px; margin-left: 6px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 999px; margin-top: 12px; }
+.pill.ok { background: rgba(111,211,154,.15); color: var(--ok); }
+.pill.no { background: rgba(240,163,94,.15); color: var(--warn); }
+.pill.idle { background: rgba(255,255,255,.07); color: var(--muted); }
+.subhint { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.subhint b { color: var(--text); }
+
+table.brk { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 14px; }
+table.brk td { padding: 7px 0; border-top: 1px solid var(--line); vertical-align: top; }
+table.brk td.f { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; padding-left: 12px; }
+table.brk td .han { font-family: var(--f-han); color: var(--gold); }
+table.brk td .jy { color: var(--muted); font-size: 12px; }
+table.brk tr.total td { font-weight: 700; border-top: 2px solid var(--gold-soft); }
+table.brk tr.cap td { color: var(--warn); font-size: 13px; }
+
+.decomp { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 14px; }
+.grp { display: flex; gap: 2px; padding: 4px 5px 7px; border-radius: 7px; background: rgba(0,0,0,.22); }
+.grp .tile { width: 22px; box-shadow: 0 1px 0 #d3c59f, 0 3px 0 var(--tile-back); }
+.grp .tile svg { inset: 5% 6%; width: 88%; height: 90%; }
+.grp.pair { background: rgba(220,184,98,.14); }
+.dlabel { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 16px; }
+
+.note { font-size: 12.5px; color: var(--muted); margin-top: 14px; line-height: 1.5; }
+footer { margin-top: 28px; font-size: 12px; color: var(--muted); text-align: center; display: grid; gap: 6px; }
+footer p { margin: 0; }
+footer p:last-child { letter-spacing: .14em; text-transform: uppercase; }
+footer a { color: var(--gold); }
+
+/* mobile summary bar */
+.mbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: rgba(10,44,33,.96); border-top: 1px solid var(--gold-soft);
+  display: flex; align-items: center; gap: 12px; backdrop-filter: blur(6px);
+}
+.mbar .n { font-family: var(--f-display); font-size: 30px; font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; min-width: 42px; }
+.mbar .t { min-width: 0; flex: 1; font-size: 13px; line-height: 1.3; }
+.mbar .t b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mbar a { color: var(--gold); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+@media (min-width: 960px) { .mbar { display: none; } }
+
+.ghost { position: fixed; z-index: 50; width: 56px; pointer-events: none; transform: translate(-50%, -60%) rotate(-4deg); }
+@media (prefers-reduced-motion: reduce) { .ptile .tile { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">Kalkulator Mahjong Hong Kong · Rifky The Lifestyle</div>
+      <h1>Kalkulator Faan<span class="han">番數</span></h1>
+      <p>Hitung poin mahjong Hong Kong tanpa ribet: susun 14 tile tangan menang, centang kondisinya, lalu nilai faan dan nama hand muncul otomatis. Opsi yang tidak mungkin terjadi langsung dikunci.</p>
+    </div>
+  </header>
+
+  <!-- ===== RACK ===== -->
+  <section class="rack-card" aria-labelledby="rack-h">
+    <div class="rack-head">
+      <h2 id="rack-h">Tangan Anda <span class="count" id="count"></span></h2>
+      <div class="actions">
+        <button class="btn" id="btn-sort" type="button">Urutkan</button>
+        <button class="btn" id="btn-clear" type="button">Kosongkan</button>
+      </div>
+    </div>
+    <div class="rack" id="rack"></div>
+    <p class="hint">Ketuk tile di bawah untuk mengisi slot kosong, atau seret ke slot mana saja. Tombol ▲ ▼ mengganti tile satu per satu. Ketuk slot dulu untuk memilih slot yang mau diganti. Kong ditulis sebagai 3 tile (Pong), lalu atur Jumlah Kong.</p>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="actions" style="margin-top:4px" id="samples" aria-label="Contoh hand"></div>
+  </section>
+
+  <div class="grid">
+    <div>
+      <!-- ===== PALETTE ===== -->
+      <section class="panel" aria-labelledby="pal-h">
+        <h2 id="pal-h">Pilih tile <small>angka kecil = sisa lembar</small></h2>
+        <div id="palette"></div>
+      </section>
+
+      <!-- ===== CONDITIONS ===== -->
+      <section class="panel" aria-labelledby="cond-h">
+        <h2 id="cond-h">Kondisi menang</h2>
+        <div class="cond">
+          <div class="cols2">
+            <div class="field">
+              <span class="flab">Angin kursi Anda</span>
+              <div class="seg" id="seg-seat" role="group" aria-label="Angin kursi"></div>
+            </div>
+            <div class="field">
+              <span class="flab">Angin ronde</span>
+              <div class="seg" id="seg-round" role="group" aria-label="Angin ronde"></div>
+            </div>
+          </div>
+          <div class="cols2">
+            <div class="field">
+              <span class="flab">Cara menang</span>
+              <div class="seg" id="seg-win" role="group" aria-label="Cara menang">
+                <button type="button" data-v="ron"><span class="han">食糊</span>Ron (buangan)</button>
+                <button type="button" data-v="zimo"><span class="han">自摸</span>Zi Mo</button>
+              </div>
+            </div>
+            <div class="field">
+              <label class="flab" for="kongs">Jumlah Kong</label>
+              <select class="sel-in" id="kongs">
+                <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="flab">Bunga yang dimiliki <span style="text-transform:none;letter-spacing:0">(ketuk untuk memilih)</span></span>
+            <div class="flowers" id="flowers"></div>
+            <div class="fl-note" id="fl-note"></div>
+          </div>
+
+          <div class="checks" id="checks"></div>
+
+          <details class="rules" id="rules">
+            <summary>Pengaturan aturan</summary>
+            <div class="rules-grid">
+              <label class="rr"><span>Minimum faan untuk Hu</span>
+                <select class="sel-in" id="r-min"><option value="0">0</option><option value="1">1</option><option value="3" selected>3</option></select></label>
+              <label class="rr"><span>Batas maksimum (limit)</span>
+                <select class="sel-in" id="r-max"><option value="10">10</option><option value="13" selected>13</option></select></label>
+              <label class="rr"><span>Nilai Menang dari Tile Pengganti<small>Wikipedia +1, House Rule bisa +2</small></span>
+                <select class="sel-in" id="r-kong"><option value="1" selected>+1</option><option value="2">+2</option></select></label>
+              <label class="rr"><span>Tertutup + Zi Mo<small>Wikipedia 1 + 1 = 2, House Rule bisa 3</small></span>
+                <select class="sel-in" id="r-fc"><option value="0" selected>2</option><option value="1">3</option></select></label>
+              <label class="rr"><span>Seven Pairs dapat Tangan Tertutup<small>Wikipedia tidak, House Rule bisa ya</small></span>
+                <select class="sel-in" id="r-7p"><option value="0" selected>Tidak</option><option value="1">Ya</option></select></label>
+              <label class="rr"><span>Semua 8 Bunga = 13 faan<small>House Rule, di Wikipedia tergantung aturan setempat</small></span>
+                <select class="sel-in" id="r-f8"><option value="0" selected>Tidak</option><option value="1">Ya</option></select></label>
+            </div>
+          </details>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== SCORE ===== -->
+    <aside class="score" id="score" aria-live="polite"></aside>
+  </div>
+
+  <footer>
+    <p>Nilai faan mengikuti <a href="https://en.wikipedia.org/wiki/Hong_Kong_mahjong_scoring_rules" rel="noopener noreferrer" target="_blank">Hong Kong mahjong scoring rules (Wikipedia)</a>. Opsi bertanda House Rule bisa disesuaikan dengan aturan komunitas.</p>
+    <p>rifky the lifestyle · tanpa unsur judi, faan hanya ukuran nilai hand · MIT License · berjalan offline, tidak mengirim data</p>
+  </footer>
+</div>
+
+<div class="mbar" id="mbar"></div>
+
+<script>
+/* =========================================================
+   Tile ids
+   0-8   Karakter 萬 (1-9)
+   9-17  Bulat 筒 (1-9)
+   18-26 Bambu 索 (1-9)
+   27-30 Angin: Timur, Selatan, Barat, Utara
+   31-33 Naga: Merah 中, Hijau 發, Putih 白
+   ========================================================= */
+const NUM_ZH = ['一','二','三','四','五','六','七','八','九'];
+const WIND_ZH = ['東','南','西','北'];
+const WIND_ID = ['Timur','Selatan','Barat','Utara'];
+const DRAGON_ZH = ['中','發','白'];
+const DRAGON_ID = ['Merah','Hijau','Putih'];
+const FLOWER_ZH = ['梅','蘭','菊','竹','春','夏','秋','冬'];
+const C_BLUE = '#1f4e9c', C_GREEN = '#1d7a48', C_RED = '#b3261e', C_INK = '#1d2a44';
+
+const isHonor = t => t >= 27;
+const isWind = t => t >= 27 && t <= 30;
+const isDragon = t => t >= 31;
+const isTerm = t => t < 27 && (t % 9 === 0 || t % 9 === 8);
+const suitOf = t => Math.floor(t / 9);
+
+function tileName(t) {
+  if (t < 9) return (t + 1) + ' Karakter';
+  if (t < 18) return (t - 8) + ' Bulat';
+  if (t < 27) return (t - 17) + ' Bambu';
+  if (t < 31) return 'Angin ' + WIND_ID[t - 27];
+  return 'Naga ' + DRAGON_ID[t - 31];
+}
+
+/* ---------- tile faces (SVG, viewBox 60 x 80) ---------- */
+function dot(cx, cy, r, c) {
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${c}"/>` +
+         `<circle cx="${cx}" cy="${cy}" r="${(r * 0.64).toFixed(2)}" fill="#f6f0de"/>` +
+         `<circle cx="${cx}" cy="${cy}" r="${(r * 0.34).toFixed(2)}" fill="${c}"/>`;
+}
+const DOTS = {
+  1: [[30,40,18,C_RED]],
+  2: [[30,21,11,C_GREEN],[30,59,11,C_BLUE]],
+  3: [[15,17,9,C_BLUE],[30,40,9,C_RED],[45,63,9,C_GREEN]],
+  4: [[18,22,10,C_BLUE],[42,22,10,C_GREEN],[18,58,10,C_GREEN],[42,58,10,C_BLUE]],
+  5: [[17,18,9,C_BLUE],[43,18,9,C_GREEN],[30,40,9,C_RED],[17,62,9,C_GREEN],[43,62,9,C_BLUE]],
+  6: [[19,14,8.5,C_GREEN],[41,14,8.5,C_GREEN],[19,41,8.5,C_RED],[41,41,8.5,C_RED],[19,66,8.5,C_RED],[41,66,8.5,C_RED]],
+  7: [[14,12,7,C_GREEN],[30,21,7,C_GREEN],[46,30,7,C_GREEN],[19,51,7.5,C_RED],[41,51,7.5,C_RED],[19,69,7.5,C_RED],[41,69,7.5,C_RED]],
+  8: [[19,11,8,C_BLUE],[41,11,8,C_BLUE],[19,30.5,8,C_BLUE],[41,30.5,8,C_BLUE],[19,50,8,C_BLUE],[41,50,8,C_BLUE],[19,69.5,8,C_BLUE],[41,69.5,8,C_BLUE]],
+  9: [[14,14,7.8,C_BLUE],[30,14,7.8,C_BLUE],[46,14,7.8,C_BLUE],[14,40,7.8,C_RED],[30,40,7.8,C_RED],[46,40,7.8,C_RED],[14,66,7.8,C_GREEN],[30,66,7.8,C_GREEN],[46,66,7.8,C_GREEN]]
+};
+function stick(x, y, h, c, rot) {
+  const half = h / 2;
+  return `<g transform="translate(${x} ${y}) rotate(${rot || 0})">` +
+    `<rect x="-3.6" y="${-half}" width="7.2" height="${h}" rx="3.4" fill="${c}"/>` +
+    `<rect x="-4.4" y="-1.4" width="8.8" height="2.8" rx="1.2" fill="${c}"/>` +
+    `<line x1="0" y1="${-half + 3}" x2="0" y2="-3" stroke="#f6f0de" stroke-width="1" opacity=".55"/>` +
+    `<line x1="0" y1="3" x2="0" y2="${half - 3}" stroke="#f6f0de" stroke-width="1" opacity=".55"/></g>`;
+}
+const G = C_GREEN, B = C_BLUE, R = C_RED;
+const BAMBOO = {
+  2: [[30,21,27,G],[30,59,27,B]],
+  3: [[30,21,27,G],[18,59,27,B],[42,59,27,B]],
+  4: [[19,21,27,G],[41,21,27,B],[19,59,27,B],[41,59,27,G]],
+  5: [[14,21,27,G],[46,21,27,B],[30,40,27,R],[14,59,27,B],[46,59,27,G]],
+  6: [[14,21,27,G],[30,21,27,G],[46,21,27,G],[14,59,27,B],[30,59,27,B],[46,59,27,B]],
+  7: [[30,12,20,R],[14,41,21,G],[30,41,21,G],[46,41,21,G],[14,66,21,B],[30,66,21,B],[46,66,21,B]],
+  8: [[11,21,28,G,-18],[23.5,21,28,G,18],[36.5,21,28,G,-18],[49,21,28,G,18],[11,59,28,B,18],[23.5,59,28,B,-18],[36.5,59,28,B,18],[49,59,28,B,-18]],
+  9: [[14,14,22,G],[30,14,22,R],[46,14,22,B],[14,40,22,G],[30,40,22,R],[46,40,22,B],[14,66,22,G],[30,66,22,R],[46,66,22,B]]
+};
+function bird() {
+  return `<path d="M30 70 L20 78 M30 70 L30 79 M30 70 L40 78" stroke="${C_GREEN}" stroke-width="3" stroke-linecap="round" fill="none"/>` +
+    `<ellipse cx="30" cy="48" rx="15" ry="20" fill="${C_GREEN}"/>` +
+    `<path d="M22 42 Q30 60 38 42" stroke="#f6f0de" stroke-width="2" fill="none" opacity=".7"/>` +
+    `<path d="M24 52 Q30 66 36 52" stroke="${C_BLUE}" stroke-width="2.4" fill="none"/>` +
+    `<circle cx="30" cy="20" r="9" fill="${C_RED}"/>` +
+    `<circle cx="33" cy="18" r="2" fill="#f6f0de"/><circle cx="33.4" cy="18" r="1" fill="${C_INK}"/>` +
+    `<path d="M38 20 L46 22 L38 24 Z" fill="#d49a2a"/>` +
+    `<path d="M26 12 L24 4 M30 11 L30 3 M34 12 L36 4" stroke="${C_RED}" stroke-width="2" stroke-linecap="round"/>`;
+}
+function faceSVG(t) {
+  let s = '';
+  if (t < 9) {
+    s = `<text x="30" y="33" text-anchor="middle" font-size="29" class="tz" fill="${C_INK}">${NUM_ZH[t]}</text>` +
+        `<text x="30" y="72" text-anchor="middle" font-size="32" class="tz" fill="${C_RED}">萬</text>`;
+  } else if (t < 18) {
+    s = DOTS[t - 8].map(d => dot(...d)).join('');
+  } else if (t < 27) {
+    const n = t - 17;
+    s = n === 1 ? bird() : BAMBOO[n].map(b => stick(...b)).join('');
+  } else if (t < 31) {
+    s = `<text x="30" y="56" text-anchor="middle" font-size="42" class="tz" fill="${C_INK}">${WIND_ZH[t - 27]}</text>`;
+  } else if (t === 31) {
+    s = `<text x="30" y="57" text-anchor="middle" font-size="46" class="tz" fill="${C_RED}">中</text>`;
+  } else if (t === 32) {
+    s = `<text x="30" y="57" text-anchor="middle" font-size="44" class="tz" fill="${C_GREEN}">發</text>`;
+  } else {
+    s = `<rect x="11" y="12" width="38" height="56" rx="4" fill="none" stroke="${C_BLUE}" stroke-width="4"/>` +
+        `<rect x="17" y="18" width="26" height="44" rx="2" fill="none" stroke="${C_BLUE}" stroke-width="1.5"/>`;
+  }
+  return `<svg viewBox="0 0 60 80" aria-hidden="true">${s}</svg>`;
+}
+function flowerSVG(i) {
+  const isSeason = i >= 4;
+  const numC = isSeason ? C_BLUE : C_RED;
+  const chC = isSeason ? C_GREEN : C_RED;
+  return `<svg viewBox="0 0 60 80" aria-hidden="true">` +
+    `<text x="9" y="18" font-size="15" font-weight="700" fill="${numC}" font-family="system-ui, sans-serif">${(i % 4) + 1}</text>` +
+    `<text x="30" y="60" text-anchor="middle" font-size="38" class="tz" fill="${chC}">${FLOWER_ZH[i]}</text></svg>`;
+}
+const tileHTML = t => `<span class="tile">${faceSVG(t)}</span>`;
+
+/* ---------- names (Indonesia/English, 漢字, Cantonese) ---------- */
+const N = {
+  chicken:  ['Chicken Hand','雞糊','Gai Wu'],
+  pingwu:   ['Ping Hu (semua Chow)','平糊','Ping Wu'],
+  pongs:    ['All Pongs (semua Pong)','對對糊','Deui Deui Wu'],
+  half:     ['Half Flush (satu suit + honor)','混一色','Wan Yat Sik'],
+  full:     ['Full Flush (satu suit)','清一色','Ching Yat Sik'],
+  sevenp:   ['Seven Pairs (7 pasang)','七對子','Chat Deui Ji'],
+  l3d:      ['Little 3 Dragons (Small Dragons)','小三元','Siu Saam Yun'],
+  b3d:      ['Big 3 Dragons (Great Dragons)','大三元','Daai Saam Yun'],
+  l4w:      ['Little 4 Winds (Small Winds)','小四喜','Siu Sei Hei'],
+  b4w:      ['Big 4 Winds (Great Winds)','大四喜','Daai Sei Hei'],
+  honors:   ['All Honors (semua honor)','字一色','Ji Yat Sik'],
+  mixterm:  ['Mixed Orphans (Pong 1, 9, honor)','花么九','Fa Yiu Gau'],
+  allterm:  ['Orphans (Pong 1 dan 9 saja)','清么九','Ching Yiu Gau'],
+  o13:      ['13 Orphans','十三么','Sap Saam Yiu'],
+  gates:    ['Nine Gates','九蓮寶燈','Gau Lin Bou Dang'],
+  kongs4:   ['Four Kongs (All Kongs)','十八羅漢','Sap Baat Lo Hon'],
+  cp4:      ['Self Triplets (4 Pong tertutup)','坎坎糊','Ham Ham Wu'],
+  heaven:   ['Heavenly Hand','天糊','Tin Wu'],
+  earth:    ['Earthly Hand','地糊','Dei Wu'],
+  flowers8: ['Semua 8 Bunga','八仙過海','Baat Sin Gwo Hoi'],
+  dragon:   ['Pong Naga','三元牌','Saam Yun Paai'],
+  seatwind: ['Pong Angin Kursi','門風','Mun Fung'],
+  roundwind:['Pong Angin Ronde','圈風','Hyun Fung'],
+  noflower: ['Tanpa Bunga','無花','Mou Fa'],
+  seatflower:['Bunga Kursi Sendiri','正花','Jing Fa'],
+  flowerset:['Satu Set Bunga Lengkap','一台花','Yat Toi Fa'],
+  zimo:     ['Zi Mo (tarik sendiri)','自摸','Ji Mo'],
+  concealed:['Tangan Tertutup','門前清','Mun Chin Ching'],
+  fullconc: ['Tertutup + Zi Mo','不求人','Bat Kau Yan'],
+  kongrep:  ['Menang dari Tile Pengganti','槓上開花','Gong Seung Hoi Fa'],
+  doublekong:['Menang dari Kong Beruntun','槓上槓','Gong Seung Gong'],
+  robkong:  ['Merampok Kong','搶槓','Cheung Gong'],
+  last:     ['Menang dari Tile Terakhir','海底撈月','Hoi Dai Lou Yut']
+};
+
+/* ---------- state ---------- */
+const state = {
+  hand: Array(14).fill(null),
+  selected: null,
+  seat: 0, round: 0,
+  win: 'ron',
+  open: false,
+  kongs: 0,
+  flowers: Array(8).fill(false),
+  ticks: { last: false, kongrep: false, doublekong: false, robkong: false, pairwin: false, heaven: false, earth: false },
+  rules: { min: 3, max: 13, kongVal: 1, fullConc3: false, sevenConcealed: false, flowers8: false }
+};
+
+const CHECKS = [
+  { key: 'open',      label: 'Tangan terbuka',              han: '',        sub: 'Pernah Chow/Pong/Kong dari buangan' },
+  { key: 'last',      label: N.last[0],                     han: N.last[1], sub: 'Tile terakhir tembok atau buangan terakhir' },
+  { key: 'kongrep',   label: N.kongrep[0],                  han: N.kongrep[1], sub: 'Tile pengganti setelah Kong atau Bunga' },
+  { key: 'doublekong',label: N.doublekong[0],               han: N.doublekong[1], sub: 'Tile pengganti Kong membentuk Kong lagi, lalu menang' },
+  { key: 'robkong',   label: N.robkong[0],                  han: N.robkong[1], sub: 'Hu dari tile lawan yang menambah Pong jadi Kong' },
+  { key: 'pairwin',   label: 'Tile kemenangan melengkapi pasangan', han: '', sub: 'Untuk Self Triplets saat Ron' },
+  { key: 'heaven',    label: N.heaven[0],                   han: N.heaven[1], sub: 'Dealer menang dari 14 tile awal' },
+  { key: 'earth',     label: N.earth[0],                    han: N.earth[1], sub: 'Hu dari buangan pertama dealer' }
+];
+
+/* ---------- hand analysis ---------- */
+function countsOf(tiles) { const c = Array(34).fill(0); tiles.forEach(t => c[t]++); return c; }
+
+function findStandard(counts) {
+  const out = [];
+  for (let p = 0; p < 34; p++) {
+    if (counts[p] < 2) continue;
+    const c = counts.slice(); c[p] -= 2;
+    const sets = [];
+    (function rec(i) {
+      while (i < 34 && c[i] === 0) i++;
+      if (i === 34) { out.push({ kind: 'std', pair: p, sets: sets.slice() }); return; }
+      if (c[i] >= 3) { c[i] -= 3; sets.push({ type: 'pong', t: i }); rec(i); sets.pop(); c[i] += 3; }
+      if (i < 27 && i % 9 <= 6 && c[i + 1] > 0 && c[i + 2] > 0) {
+        c[i]--; c[i + 1]--; c[i + 2]--; sets.push({ type: 'chow', t: i });
+        rec(i);
+        sets.pop(); c[i]++; c[i + 1]++; c[i + 2]++;
+      }
+    })(0);
+  }
+  return out;
+}
+const isSevenPairs = c => c.reduce((a, b) => a + b, 0) === 14 && c.every(n => n % 2 === 0);
+const ORPH = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
+function isThirteen(c) {
+  if (!ORPH.every(t => c[t] >= 1)) return false;
+  if (ORPH.reduce((a, t) => a + c[t], 0) !== 14) return false;
+  return ORPH.some(t => c[t] === 2);
+}
+function isNineGates(tiles, c) {
+  const s = suitOf(tiles[0]);
+  if (s > 2 || !tiles.every(t => t < 27 && suitOf(t) === s)) return false;
+  const base = [3, 1, 1, 1, 1, 1, 1, 1, 3];
+  return base.every((b, v) => c[s * 9 + v] >= b);
+}
+
+function scoreCandidate(cand, tiles, counts, st, open) {
+  // Values follow https://en.wikipedia.org/wiki/Hong_Kong_mahjong_scoring_rules
+  // "If multiple criteria are satisfied, the points awarded under each criterion are stacked together."
+  const R = st.rules, zimo = st.win === 'zimo', closed = !open;
+  const lines = [];
+  const add = (key, faan, detail, kind) => lines.push({ key, faan, detail: detail || '', kind: kind || 'bonus' });
+  const flowerCount = st.flowers.filter(Boolean).length;
+  const pongs = cand.kind === 'std' ? cand.sets.filter(s => s.type === 'pong') : [];
+  const chows = cand.kind === 'std' ? cand.sets.filter(s => s.type === 'chow') : [];
+
+  /* ---- winning conditions (also count for limit hands) ---- */
+  function addWinConditions(strictlyConcealed) {
+    // 門前清 is not given to hands that are concealed by definition
+    const concealed = closed && !strictlyConcealed;
+    if (zimo && concealed && R.fullConc3) add('fullconc', 3);
+    else {
+      if (zimo) add('zimo', 1);
+      if (concealed) add('concealed', 1);
+    }
+    if (st.ticks.doublekong) add('doublekong', 8);
+    else if (st.ticks.kongrep) add('kongrep', R.kongVal);
+    if (st.ticks.robkong) add('robkong', 1);
+    if (st.ticks.last) add('last', 1);
+  }
+  const sevenStrict = cand.kind === 'sevenp' && !R.sevenConcealed;
+
+  /* ---- limit hands: only the highest one counts, no winds/dragons/flowers ---- */
+  const limits = [];
+  if (cand.kind === 'o13') limits.push(['o13', 13]);
+  if (tiles.every(isHonor)) limits.push(['honors', 10]);
+  if (cand.kind === 'std') {
+    if (pongs.filter(s => isWind(s.t)).length === 4) limits.push(['b4w', 13]);
+    if (st.kongs === 4) limits.push(['kongs4', 13]);
+    if (pongs.length === 4 && tiles.every(isTerm)) limits.push(['allterm', 10]);
+    if (pongs.length === 4 && closed && (zimo || st.ticks.pairwin)) limits.push(['cp4', 10]);
+  }
+  if (closed && isNineGates(tiles, counts)) limits.push(['gates', 10]);
+  if (st.ticks.heaven) limits.push(['heaven', 13]);
+  if (st.ticks.earth) limits.push(['earth', 13]);
+  if (R.flowers8 && flowerCount === 8) limits.push(['flowers8', 13]);
+
+  if (limits.length) {
+    limits.sort((a, b) => b[1] - a[1]);
+    const [key, value] = limits[0];
+    lines.push({ key, faan: value, detail: '', kind: 'hand', limit: true });
+    const strict = cand.kind === 'o13' || key === 'cp4' || key === 'gates' || sevenStrict;
+    addWinConditions(strict);
+    const raw = lines.reduce((a, l) => a + l.faan, 0);
+    return { total: Math.min(raw, R.max), raw, capped: raw > R.max, limit: true, limitValue: value, lines, cand };
+  }
+
+  /* ---- hand patterns ---- */
+  const suits = new Set(tiles.filter(t => t < 27).map(suitOf));
+  const hasHonor = tiles.some(isHonor);
+  const dragonPongs = pongs.filter(s => isDragon(s.t));
+  const windPongs = pongs.filter(s => isWind(s.t));
+
+  if (cand.kind === 'std' && chows.length === 4) add('pingwu', 1, '', 'hand');
+  if (cand.kind === 'std' && pongs.length === 4) add('pongs', 3, '', 'hand');
+  if (cand.kind === 'sevenp') add('sevenp', 4, '', 'hand');
+  if (suits.size === 1) add(hasHonor ? 'half' : 'full', hasHonor ? 3 : 7, '', 'hand');
+  if (cand.kind === 'std') {
+    if (dragonPongs.length === 3) add('b3d', 5, '', 'hand');
+    else if (dragonPongs.length === 2 && isDragon(cand.pair)) add('l3d', 3, '', 'hand');
+    if (windPongs.length === 3 && isWind(cand.pair)) add('l4w', 6, '', 'hand');
+    if (pongs.length === 4 && hasHonor && tiles.every(t => isHonor(t) || isTerm(t))) add('mixterm', 1, '', 'hand');
+  }
+  if (!lines.some(l => l.kind === 'hand')) add('chicken', 0, '', 'hand');
+
+  /* ---- winds and dragons: 1 faan per meld, always stacked ---- */
+  dragonPongs.forEach(s => add('dragon', 1, DRAGON_ZH[s.t - 31] + ' ' + DRAGON_ID[s.t - 31]));
+  windPongs.forEach(s => {
+    const w = s.t - 27;
+    if (w === st.seat) add('seatwind', 1, WIND_ZH[w] + ' ' + WIND_ID[w]);
+    if (w === st.round) add('roundwind', 1, WIND_ZH[w] + ' ' + WIND_ID[w]);
+  });
+
+  /* ---- flowers ---- */
+  if (flowerCount === 0) add('noflower', 1);
+  else {
+    [0, 4].forEach(g => {
+      const grp = st.flowers.slice(g, g + 4);
+      if (grp.every(Boolean)) add('flowerset', 2, g === 0 ? '梅蘭菊竹' : '春夏秋冬');
+      else if (grp[st.seat]) add('seatflower', 1, FLOWER_ZH[g + st.seat]);
+    });
+  }
+
+  addWinConditions(sevenStrict);
+
+  const raw = lines.reduce((a, l) => a + l.faan, 0);
+  return { total: Math.min(raw, R.max), raw, capped: raw > R.max, limit: false, lines, cand };
+}
+
+function evaluate(st) {
+  const tiles = st.hand.filter(t => t !== null);
+  if (tiles.length < 14) return { status: 'incomplete', need: 14 - tiles.length };
+  const counts = countsOf(tiles);
+  const stdAll = findStandard(counts);
+  const std = stdAll.filter(d => d.sets.filter(s => s.type === 'pong').length >= st.kongs);
+  const sp = st.kongs === 0 && isSevenPairs(counts);
+  const th = st.kongs === 0 && isThirteen(counts);
+  if (!std.length && !sp && !th) {
+    const kongIssue = st.kongs > 0 && (stdAll.length || isSevenPairs(counts) || isThirteen(counts));
+    return { status: 'nowin', kongIssue };
+  }
+  const forceClosed = !std.length;
+  const open = st.open && !forceClosed;
+  const cands = std.slice();
+  if (sp) cands.push({ kind: 'sevenp' });
+  if (th) cands.push({ kind: 'o13' });
+  let best = null;
+  cands.forEach(c => {
+    const r = scoreCandidate(c, tiles, counts, st, open);
+    if (!best || r.total > best.total || (r.total === best.total && r.raw > best.raw)) best = r;
+  });
+  const fourPongs = std.some(d => d.sets.every(x => x.type === 'pong'));
+  return Object.assign({ status: 'win', forceClosed, open, fourPongs }, best);
+}
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const useCount = (t, exceptIdx) => state.hand.reduce((a, x, i) => a + (x === t && i !== exceptIdx ? 1 : 0), 0);
+let toastTimer = null;
+function toast(msg) { $('toast').textContent = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').textContent = '', 3200); }
+
+function placeTile(t, idx) {
+  if (useCount(t, idx) >= 4) { toast('Sudah 4 lembar ' + tileName(t) + '. Satu jenis tile hanya ada 4.'); return false; }
+  state.hand[idx] = t;
+  return true;
+}
+function addFromPalette(t) {
+  let idx = state.selected;
+  if (idx === null) idx = state.hand.indexOf(null);
+  if (idx === -1) { toast('Rak sudah 14 tile. Ketuk salah satu slot dulu untuk menggantinya.'); return; }
+  if (placeTile(t, idx)) { state.selected = null; update(); }
+}
+function cycle(idx, dir) {
+  const cur = state.hand[idx];
+  let t = cur === null ? (dir > 0 ? -1 : 34) : cur;
+  for (let k = 0; k < 34; k++) {
+    t = (t + dir + 34) % 34;
+    if (useCount(t, idx) < 4) { state.hand[idx] = t; break; }
+  }
+  update();
+}
+
+/* ---------- render: rack ---------- */
+function renderRack() {
+  const rack = $('rack');
+  rack.innerHTML = state.hand.map((t, i) => `
+    <div class="slot${state.selected === i ? ' sel' : ''}" data-slot="${i}">
+      <button class="slot-btn" type="button" data-up="${i}" aria-label="Tile berikutnya, slot ${i + 1}">▲</button>
+      <button class="tile-hit" type="button" data-hit="${i}" aria-label="${t === null ? 'Slot kosong ' + (i + 1) : tileName(t) + ', slot ' + (i + 1)}">
+        ${t === null ? `<span class="empty">${i + 1}</span>` : tileHTML(t)}
+        ${t === null ? '' : `<span class="rm" data-rm="${i}" role="button" aria-label="Hapus">✕</span>`}
+      </button>
+      <button class="slot-btn" type="button" data-down="${i}" aria-label="Tile sebelumnya, slot ${i + 1}">▼</button>
+    </div>`).join('');
+  const n = state.hand.filter(t => t !== null).length;
+  $('count').innerHTML = `<b>${n}</b>/14`;
+}
+
+/* ---------- render: palette ---------- */
+function renderPalette() {
+  const rows = [
+    ['Karakter', '萬', [0,1,2,3,4,5,6,7,8]],
+    ['Bulat', '筒', [9,10,11,12,13,14,15,16,17]],
+    ['Bambu', '索', [18,19,20,21,22,23,24,25,26]],
+    ['Honor', '字', [27,28,29,30,31,32,33]]
+  ];
+  $('palette').innerHTML = rows.map(([lab, han, ids]) => `
+    <div class="prow"><div class="lab"><span class="han">${han}</span>${lab}</div>
+      <div class="ptiles">${ids.map(t => {
+        const left = 4 - useCount(t, -1);
+        return `<button class="ptile" type="button" data-p="${t}" aria-label="${tileName(t)}, sisa ${left}" aria-disabled="${left <= 0}">
+          <span class="tile">${faceSVG(t)}<span class="left">${left}</span></span></button>`;
+      }).join('')}</div></div>`).join('');
+}
+
+/* ---------- render: conditions ---------- */
+function renderSeg(id, val, onPick) {
+  const el = $(id);
+  el.innerHTML = WIND_ZH.map((z, i) => `<button type="button" data-v="${i}" aria-pressed="${val === i}"><span class="han">${z}</span>${WIND_ID[i]}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('button'); if (b) onPick(+b.dataset.v); };
+}
+function renderFlowers() {
+  $('flowers').innerHTML = state.flowers.map((on, i) => `
+    <button class="fl" type="button" data-f="${i}" aria-pressed="${on}" aria-label="Bunga ${FLOWER_ZH[i]} nomor ${(i % 4) + 1}">
+      <span class="tile">${flowerSVG(i)}</span></button>`).join('');
+  const seatNo = state.seat + 1;
+  const n = state.flowers.filter(Boolean).length;
+  $('fl-note').textContent = `Bunga kursi Anda: nomor ${seatNo} (${FLOWER_ZH[state.seat]} dan ${FLOWER_ZH[state.seat + 4]}). ` +
+    (n === 0 ? 'Tidak ada bunga, jadi dapat Tanpa Bunga +1.' : n + ' bunga dipilih.');
+}
+
+function checkRules(result) {
+  const zimo = state.win === 'zimo';
+  const nFlowers = state.flowers.filter(Boolean).length;
+  const win = result.status === 'win';
+  const forceClosed = win && result.forceClosed;
+  return {
+    open:       forceClosed ? 'Seven Pairs dan 13 Orphans wajib tertutup' : (state.ticks.heaven || state.ticks.earth) ? 'Heavenly/Earthly Hand selalu tertutup' : '',
+    last:       '',
+    kongrep:    !zimo ? 'Hanya bisa saat Zi Mo' : (state.kongs === 0 && nFlowers === 0) ? 'Butuh minimal 1 Kong atau 1 Bunga' : state.ticks.doublekong ? 'Sudah termasuk Kong Beruntun' : '',
+    doublekong: !zimo ? 'Hanya bisa saat Zi Mo' : state.kongs < 2 ? 'Atur Jumlah Kong minimal 2' : '',
+    robkong:    zimo ? 'Hanya bisa saat Ron' : '',
+    pairwin:    zimo ? 'Saat Zi Mo tidak perlu dicentang' : state.open ? 'Butuh tangan tertutup' : (win && !result.fourPongs) ? 'Hanya untuk tangan 4 Pong' : '',
+    heaven:     state.seat !== 0 ? 'Hanya untuk dealer (kursi Timur)' : !zimo ? 'Heavenly Hand selalu Zi Mo' : state.open ? 'Butuh tangan tertutup' : '',
+    earth:      state.seat === 0 ? 'Hanya untuk non-dealer' : zimo ? 'Earthly Hand selalu dari buangan (Ron)' : state.open ? 'Butuh tangan tertutup' : ''
+  };
+}
+
+function renderChecks(reasons, result) {
+  // When the hand already sits at the maximum, extra options cannot change the total.
+  const atMax = result.status === 'win' && result.limit && result.limitValue >= state.rules.max;
+  $('checks').innerHTML = CHECKS.map(c => {
+    let why = reasons[c.key];
+    const checked = c.key === 'open' ? state.open : state.ticks[c.key];
+    if (!why && atMax && c.key !== 'open' && !checked) why = 'Sudah mencapai batas maksimum';
+    return `<label class="chk${why ? ' dis' : ''}">
+      <input type="checkbox" id="chk-${c.key}" data-c="${c.key}" ${checked ? 'checked' : ''} ${why ? 'disabled' : ''}>
+      <span class="box"></span>
+      <span class="txt">${c.label}${c.han ? `<span class="han">${c.han}</span>` : ''}<small>${why || c.sub}</small></span></label>`;
+  }).join('');
+  $('kongs').disabled = result.status === 'win' && result.forceClosed;
+}
+
+/* ---------- render: score ---------- */
+function nameOf(key) { return N[key] || [key, '', '']; }
+function handTitle(res) {
+  const hands = res.lines.filter(l => l.kind === 'hand');
+  return {
+    id: hands.map(l => nameOf(l.key)[0].replace(/ \(.*\)$/, '')).join(' + '),
+    han: hands.map(l => nameOf(l.key)[1]).join(' · '),
+    jy: hands.map(l => nameOf(l.key)[2]).join(' · ')
+  };
+}
+function decompHTML(res) {
+  const c = res.cand;
+  let groups = [];
+  if (c.kind === 'std') {
+    groups = c.sets.map(s => ({ tiles: s.type === 'pong' ? [s.t, s.t, s.t] : [s.t, s.t + 1, s.t + 2] }));
+    groups.push({ tiles: [c.pair, c.pair], pair: true });
+  } else if (c.kind === 'sevenp') {
+    const cnt = countsOf(state.hand.filter(t => t !== null));
+    cnt.forEach((n, t) => { for (let k = 0; k < n / 2; k++) groups.push({ tiles: [t, t], pair: true }); });
+  } else {
+    groups = [{ tiles: state.hand.filter(t => t !== null).sort((a, b) => a - b) }];
+  }
+  return `<div class="dlabel">Susunan terbaik</div><div class="decomp">` +
+    groups.map(g => `<span class="grp${g.pair ? ' pair' : ''}">${g.tiles.map(tileHTML).join('')}</span>`).join('') + `</div>`;
+}
+
+function renderScore(res) {
+  const el = $('score'), R = state.rules;
+  let html = '', mNum = '–', mTitle = '', mSub = '';
+  if (res.status === 'incomplete') {
+    html = `<div class="score-card">
+      <div class="big"><span class="num">–</span><span class="unit">faan<span class="han">番</span></span></div>
+      <div class="hand-name">Tambah ${res.need} tile lagi</div>
+      <span class="pill idle">Butuh tepat 14 tile</span>
+      <p class="subhint">Kong tetap diisi 3 tile, jadi tangan selalu 14 tile.</p></div>`;
+    mTitle = 'Tambah ' + res.need + ' tile lagi'; mSub = 'Butuh 14 tile';
+  } else if (res.status === 'nowin') {
+    html = `<div class="score-card">
+      <div class="big"><span class="num">–</span><span class="unit">faan<span class="han">番</span></span></div>
+      <div class="hand-name">Belum tangan menang</div>
+      <span class="pill no">Tidak bisa Hu</span>
+      <p class="subhint">${res.kongIssue
+        ? 'Jumlah Kong lebih banyak dari Pong yang ada di tangan. Kurangi Jumlah Kong.'
+        : 'Tangan menang harus 4 set (Chow atau Pong) + 1 pasang, atau Seven Pairs, atau 13 Orphans.'}</p></div>`;
+    mTitle = 'Belum tangan menang'; mSub = 'Cek susunan tile';
+  } else {
+    const t = handTitle(res);
+    const okHu = res.total >= R.min;
+    let hint = '';
+    if (!okHu && state.win === 'ron') {
+      const alt = evaluate(Object.assign({}, state, { win: 'zimo', ticks: Object.assign({}, state.ticks, { robkong: false, earth: false }) }));
+      if (alt.status === 'win' && alt.total >= R.min) hint = `<p class="subhint">Kalau Zi Mo, nilainya <b>${alt.total} faan</b>. Tunggu tarikan sendiri, jangan Hu dari buangan.</p>`;
+    }
+    const rows = res.lines.map(l => {
+      const n = nameOf(l.key);
+      return `<tr><td>${n[0]}${l.limit ? ' · limit hand' : ''}${l.detail ? ' · ' + l.detail : ''}<br><span class="han">${n[1]}</span> <span class="jy">${n[2]}</span></td><td class="f">+${l.faan}</td></tr>`;
+    }).join('');
+    const cap = res.capped ? `<tr class="cap"><td>Total ${res.raw}, dibatasi limit</td><td class="f">${R.max}</td></tr>` : '';
+    html = `<div class="score-card">
+      <div class="big"><span class="num">${res.total}</span><span class="unit">faan<span class="han">番</span>${res.total >= R.max ? ' · MAKS' : ''}</span></div>
+      <div class="hand-name">${t.id}</div>
+      <div class="hand-han">${t.han}<span class="jy">${t.jy}</span></div>
+      <span class="pill ${okHu ? 'ok' : 'no'}">${okHu ? '✓ Sah untuk Hu' : '✕ Kurang dari ' + R.min + ' faan, tidak boleh Hu'}</span>
+      ${hint}
+      <table class="brk">${rows}${cap}<tr class="total"><td>Total</td><td class="f">${res.total} faan</td></tr></table>
+      ${decompHTML(res)}
+      ${res.forceClosed ? '<p class="note">Hand ini hanya sah dalam keadaan tertutup, jadi opsi Tangan terbuka dikunci.</p>' : ''}
+      ${res.cand.kind === 'std' && res.open ? '<p class="note">Tangan terbuka: bonus Tangan Tertutup tidak dihitung.</p>' : ''}
+      ${res.limit ? '<p class="note">Limit hand: bonus angin, naga, dan bunga tidak dihitung. Kondisi menang tetap ditambahkan sampai batas maksimum.</p>' : ''}
+      ${!res.limit && res.cand.kind === 'std' && res.cand.sets.every(x => x.type === 'pong') && !res.open && state.win === 'ron' ? '<p class="note">4 Pong tertutup: kalau tile kemenangan dari buangan melengkapi pasangan (bukan Pong), centang opsinya. Hand menjadi Self Triplets (limit 10). Zi Mo juga otomatis jadi Self Triplets.</p>' : ''}
+    </div>`;
+    mNum = res.total; mTitle = t.id; mSub = okHu ? 'Sah untuk Hu' : 'Kurang dari ' + R.min + ' faan';
+  }
+  el.innerHTML = html;
+  $('mbar').innerHTML = `<span class="n">${mNum}</span><span class="t"><b>${mTitle}</b>${mSub}</span><a href="#score">Rincian</a>`;
+}
+
+/* ---------- update cycle ---------- */
+function update() {
+  // pass 1: find structural constraints, then drop impossible ticks
+  let res = evaluate(state);
+  if (res.status === 'win' && res.forceClosed) { state.open = false; state.kongs = 0; }
+  let reasons = checkRules(res);
+  Object.keys(state.ticks).forEach(k => { if (reasons[k]) state.ticks[k] = false; });
+  if (reasons.open) state.open = false;
+  // pass 2: final score
+  res = evaluate(state);
+  reasons = checkRules(res);
+  renderRack();
+  renderPalette();
+  renderSeg('seg-seat', state.seat, v => { state.seat = v; update(); });
+  renderSeg('seg-round', state.round, v => { state.round = v; update(); });
+  document.querySelectorAll('#seg-win button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === state.win));
+  $('kongs').value = String(state.kongs);
+  renderFlowers();
+  renderChecks(reasons, res);
+  renderScore(res);
+}
+
+/* ---------- events ---------- */
+$('seg-win').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { state.win = b.dataset.v; update(); } });
+$('kongs').addEventListener('change', e => { state.kongs = +e.target.value; update(); });
+$('flowers').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { const i = +b.dataset.f; state.flowers[i] = !state.flowers[i]; update(); } });
+$('checks').addEventListener('change', e => {
+  const k = e.target.dataset.c; if (!k) return;
+  if (k === 'open') state.open = e.target.checked; else state.ticks[k] = e.target.checked;
+  update();
+});
+$('r-min').addEventListener('change', e => { state.rules.min = +e.target.value; update(); });
+$('r-max').addEventListener('change', e => { state.rules.max = +e.target.value; update(); });
+$('r-kong').addEventListener('change', e => { state.rules.kongVal = +e.target.value; update(); });
+$('r-7p').addEventListener('change', e => { state.rules.sevenConcealed = e.target.value === '1'; update(); });
+$('r-fc').addEventListener('change', e => { state.rules.fullConc3 = e.target.value === '1'; update(); });
+$('r-f8').addEventListener('change', e => { state.rules.flowers8 = e.target.value === '1'; update(); });
+$('btn-clear').addEventListener('click', () => { state.hand = Array(14).fill(null); state.selected = null; update(); });
+$('btn-sort').addEventListener('click', () => {
+  const t = state.hand.filter(x => x !== null).sort((a, b) => a - b);
+  state.hand = t.concat(Array(14 - t.length).fill(null)); state.selected = null; update();
+});
+
+$('rack').addEventListener('click', e => {
+  const up = e.target.closest('[data-up]'), down = e.target.closest('[data-down]'), rm = e.target.closest('[data-rm]');
+  if (up) return cycle(+up.dataset.up, 1);
+  if (down) return cycle(+down.dataset.down, -1);
+  if (rm) { e.stopPropagation(); const i = +rm.dataset.rm; state.hand[i] = null; if (state.selected === i) state.selected = null; return update(); }
+});
+$('rack').addEventListener('keydown', e => {
+  const hit = e.target.closest('[data-hit]'); if (!hit) return;
+  const i = +hit.dataset.hit;
+  if (e.key === 'ArrowUp') { e.preventDefault(); cycle(i, 1); focusHit(i); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); cycle(i, -1); focusHit(i); }
+  else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); state.hand[i] = null; update(); focusHit(i); }
+});
+function focusHit(i) { const el = document.querySelector(`[data-hit="${i}"]`); if (el) el.focus(); }
+
+$('palette').addEventListener('click', e => {
+  const p = e.target.closest('[data-p]'); if (!p || dragJustEnded) return;
+  addFromPalette(+p.dataset.p);
+});
+
+/* ---------- pointer drag (palette -> slot, slot -> slot, slot -> out) ---------- */
+let drag = null, dragJustEnded = false;
+function startDrag(e, src) {
+  if (e.button !== undefined && e.button !== 0) return;
+  drag = { src, x: e.clientX, y: e.clientY, moved: false, ghost: null, over: null };
+}
+document.addEventListener('pointerdown', e => {
+  const hit = e.target.closest('[data-hit]');
+  if (hit && !e.target.closest('[data-rm]')) return startDrag(e, { from: 'slot', i: +hit.dataset.hit });
+  const p = e.target.closest('[data-p]');
+  if (p && p.getAttribute('aria-disabled') !== 'true') startDrag(e, { from: 'palette', t: +p.dataset.p });
+});
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 7) return;
+  if (!drag.moved) {
+    const t = drag.src.from === 'palette' ? drag.src.t : state.hand[drag.src.i];
+    if (t === null) { drag = null; return; }
+    drag.moved = true;
+    drag.ghost = document.createElement('div');
+    drag.ghost.className = 'ghost';
+    drag.ghost.innerHTML = tileHTML(t);
+    document.body.appendChild(drag.ghost);
+    if (drag.src.from === 'slot') { const s = document.querySelector(`[data-slot="${drag.src.i}"]`); if (s) s.classList.add('dragging'); }
+  }
+  drag.ghost.style.left = e.clientX + 'px';
+  drag.ghost.style.top = e.clientY + 'px';
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const slot = under && under.closest('[data-slot]');
+  document.querySelectorAll('.slot.over').forEach(s => s.classList.remove('over'));
+  drag.over = slot ? +slot.dataset.slot : null;
+  if (slot) slot.classList.add('over');
+});
+function endDrag(e, cancelled) {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.moved) {
+    if (!cancelled && d.src.from === 'slot') {
+      state.selected = state.selected === d.src.i ? null : d.src.i;
+      renderRack();
+    }
+    return;
+  }
+  d.ghost.remove();
+  dragJustEnded = true; setTimeout(() => dragJustEnded = false, 0);
+  if (cancelled) { update(); return; }
+  if (d.src.from === 'palette') {
+    if (d.over !== null) placeTile(d.src.t, d.over);
+  } else {
+    if (d.over !== null && d.over !== d.src.i) {
+      const a = state.hand[d.src.i]; state.hand[d.src.i] = state.hand[d.over]; state.hand[d.over] = a;
+    } else if (d.over === null) {
+      const inRack = e && document.elementFromPoint(e.clientX, e.clientY)?.closest('#rack');
+      if (!inRack) state.hand[d.src.i] = null;
+    }
+  }
+  state.selected = null;
+  update();
+}
+document.addEventListener('pointerup', e => endDrag(e, false));
+document.addEventListener('pointercancel', () => endDrag(null, true));
+
+/* ---------- samples ---------- */
+const SAMPLES = [
+  { name: 'Half Flush + Naga', hand: [0,1,2,3,4,5,6,7,8,31,31,31,4,4], win: 'ron' },
+  { name: 'Ping Hu', hand: [0,1,2,12,13,14,24,25,26,1,2,3,13,13], win: 'ron' },
+  { name: 'All Pongs', hand: [9,9,9,26,26,26,27,27,27,32,32,32,1,1], win: 'ron' },
+  { name: 'Seven Pairs', hand: [0,0,8,8,11,11,15,15,22,22,27,27,33,33], win: 'zimo' },
+  { name: 'Full Flush', hand: [18,19,20,21,22,23,24,24,24,25,25,25,26,26], win: 'zimo' },
+  { name: 'Big 3 Dragons', hand: [31,31,31,32,32,32,33,33,33,19,20,21,14,14], win: 'ron' },
+  { name: '13 Orphans', hand: [0,8,9,17,18,26,27,28,29,30,31,32,33,31], win: 'ron' },
+  { name: 'Four Kongs', hand: [16,16,16,25,25,25,23,23,23,22,22,22,31,31], win: 'zimo', kongs: 4 }
+];
+$('samples').innerHTML = '<span class="count" style="align-self:center;margin-right:4px">Contoh:</span>' +
+  SAMPLES.map((s, i) => `<button class="btn" type="button" data-s="${i}">${s.name}</button>`).join('');
+$('samples').addEventListener('click', e => {
+  const b = e.target.closest('[data-s]'); if (!b) return;
+  const s = SAMPLES[+b.dataset.s];
+  state.hand = s.hand.slice(); state.win = s.win; state.open = false; state.kongs = s.kongs || 0;
+  state.flowers = Array(8).fill(false); Object.keys(state.ticks).forEach(k => state.ticks[k] = false);
+  state.selected = null; update();
+});
+
+// open in a working state with the first example loaded
+state.hand = SAMPLES[0].hand.slice();
+update();
+</script>
+</body>
+</html>
