@@ -1,3 +1,19 @@
+<p align="center">
+  <img src="images/banner.png" alt="Kalkulator Mahjong Hong Kong" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://arifkyi.github.io/kalkulator-mahjong"><img src="https://img.shields.io/badge/Buka_Kalkulator-Live-dcb862?style=for-the-badge&labelColor=0e3b2d" alt="Buka Kalkulator"></a>
+  <a href="https://www.virustotal.com/gui/file/866b4ce5a99a1cbc86a086d57a8d868c7459d0bea8308382ac9b81b448e6239b"><img src="https://img.shields.io/badge/VirusTotal-0%2F60-2ea44f?style=for-the-badge&labelColor=0e3b2d" alt="VirusTotal 0/60"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-dcb862?style=for-the-badge&labelColor=0e3b2d" alt="MIT License"></a>
+  <br>
+  <img src="https://img.shields.io/badge/Offline-Ready-2ea44f?style=flat-square&labelColor=0e3b2d" alt="Offline">
+  <img src="https://img.shields.io/badge/Tracking-None-2ea44f?style=flat-square&labelColor=0e3b2d" alt="No tracking">
+  <img src="https://img.shields.io/badge/Single_File-HTML-dcb862?style=flat-square&labelColor=0e3b2d" alt="Single file HTML">
+  <img src="https://img.shields.io/badge/Rules-Wikipedia_HK-dcb862?style=flat-square&labelColor=0e3b2d" alt="Wikipedia HK rules">
+  <img src="https://img.shields.io/badge/Tanpa-Judi-2ea44f?style=flat-square&labelColor=0e3b2d" alt="Tanpa unsur judi">
+</p>
+
 # Kalkulator Mahjong Hong Kong (Kalkulator Faan 番數)
 
 **🇮🇩 Bahasa Indonesia** | [🇬🇧 English](#english)
