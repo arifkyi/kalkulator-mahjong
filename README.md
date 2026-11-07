@@ -58,7 +58,7 @@ Cara cek:
 - Windows (PowerShell): `Get-FileHash index.html -Algorithm SHA256`
 - macOS / Linux: `shasum -a 256 index.html`
 
-Laporan VirusTotal: _(tempel link laporan VirusTotal di sini)_
+Laporan VirusTotal: [0/60, lihat laporan](https://www.virustotal.com/gui/file/866b4ce5a99a1cbc86a086d57a8d868c7459d0bea8308382ac9b81b448e6239b)
 
 ## Lisensi
 
@@ -114,7 +114,7 @@ SHA-256 of `index.html`:
 - Windows (PowerShell): `Get-FileHash index.html -Algorithm SHA256`
 - macOS / Linux: `shasum -a 256 index.html`
 
-VirusTotal report: _(paste the VirusTotal report link here)_
+VirusTotal report: [0/60, view report](https://www.virustotal.com/gui/file/866b4ce5a99a1cbc86a086d57a8d868c7459d0bea8308382ac9b81b448e6239b)
 
 ## License
 
